@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Dark Ambient Binaural</title>
+    <script src="https://unpkg.com/tone/build/Tone.js"></script>
+  </head>
+  <body>
+    <button onclick="start()">Begin Ritual</button>
+    <script>
+      async function start() {
+        await Tone.start();
+
+        const base = 60;
+        const offset = 1.5;
+
+        // Global fade-in
+        Tone.Destination.volume.value = -Infinity;
+        Tone.Destination.volume.rampTo(0, 15); // fade in over 15 seconds
+
+        // Left sine wave
+        const oscL = new Tone.Oscillator(base, "sine").start();
+        const panL = new Tone.Panner(-1);
+        oscL.volume.value = -12;
+        oscL.connect(panL).connect(Tone.Destination);
+
+        // Right sine wave
+        const oscR = new Tone.Oscillator(base + offset, "sine").start();
+        const panR = new Tone.Panner(1);
+        oscR.volume.value = -12;
+        oscR.connect(panR).connect(Tone.Destination);
+
+        // Sub saw layer with filter
+        const sub = new Tone.Oscillator(30, "sawtooth").start();
+        const subFilter = new Tone.Filter(100, "lowpass");
+        const subGain = new Tone.Gain(0.4);
+        sub.chain(subFilter, subGain, Tone.Destination);
+
+        const lfo = new Tone.LFO("0.02hz", 60, 200);
+        lfo.connect(subFilter.frequency).start();
+
+        // Brown noise pad
+        const noise = new Tone.Noise("brown").start();
+        const noiseFilter = new Tone.Filter(500, "lowpass");
+        const noiseGain = new Tone.Gain(0.05);
+        noise.chain(noiseFilter, noiseGain, Tone.Destination);
+
+        // Detuned fifth
+        const fifth = new Tone.Oscillator(base * 1.5 + 0.3, "sine").start();
+        fifth.volume.value = -20;
+        fifth.connect(Tone.Destination);
+      }
+    </script>
+  </body>
+</html>
