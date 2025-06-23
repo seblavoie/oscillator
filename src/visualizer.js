@@ -185,7 +185,11 @@
     });
 
     // Controls appear only when cursor near bottom 100px
-    const controls = [select, fsBtn];
+    const micBtn = document.getElementById("micBtn");
+    const toneBtn = document.getElementById("toneBtn");
+
+    const controls = [select, fsBtn, micBtn, toneBtn];
+
     let visible = false;
     const setVisibility = (vis) => {
       if (visible === vis) return;
@@ -209,6 +213,49 @@
         loadPreset(keys[currentIndex], 2.7);
       }
     });
+
+    /* === Microphone toggle === */
+    let micActive = false;
+    let micStream = null;
+    let micSource = null;
+
+    async function toggleMic() {
+      if (!micActive) {
+        try {
+          micStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+          micSource = audioCtx.createMediaStreamSource(micStream);
+          const micGain = new Tone.Gain(1);
+          micSource.connect(micGain);
+          micGain.connect(vizGain);
+          micGain.connect(audioCtx.destination);
+          micActive = true;
+          micBtn.textContent = "Mic✓";
+        } catch (err) {
+          console.error("Mic error", err);
+        }
+      } else {
+        if (micSource) {
+          micSource.disconnect();
+        }
+        if (micStream) {
+          micStream.getTracks().forEach((t) => t.stop());
+        }
+        micActive = false;
+        micBtn.textContent = "Mic";
+      }
+    }
+    micBtn.addEventListener("click", toggleMic);
+
+    /* === Tone toggle === */
+    let toneActive = true;
+    function toggleTone() {
+      toneActive = !toneActive;
+      Tone.Destination.mute = !toneActive;
+      toneBtn.textContent = toneActive ? "Tone✓" : "Tone";
+    }
+    toneBtn.addEventListener("click", toggleTone);
   }
 
   document.addEventListener("DOMContentLoaded", init);
