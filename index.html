@@ -3,53 +3,62 @@
   <head>
     <meta charset="UTF-8" />
     <title>Dark Ambient Binaural</title>
-    <script src="https://unpkg.com/tone/build/Tone.js"></script>
+    <!-- Butterchurn libs -->
+    <script src="https://cdn.jsdelivr.net/npm/butterchurn@2.6.7/lib/butterchurn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/butterchurn-presets@2.4.7/lib/butterchurnPresets.min.js"></script>
+
+    <!-- Tone.js must load before our visualizer script -->
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"></script>
+
+    <!-- Load plain visualizer script -->
+    <script src="./src/visualizer.js"></script>
+    <!-- Auto-start Tone + Butterchurn once DOM is ready. -->
+    <script type="module">
+      document.addEventListener("DOMContentLoaded", () => {
+        // Kick off immediately; don't await so visuals init even if audio blocked
+        window.startVisualizer?.();
+
+        // If autoplay is blocked, resume after first user gesture
+        const resume = async () => {
+          document.removeEventListener("pointerdown", resume);
+          window.startVisualizer?.(); // retry
+        };
+        document.addEventListener("pointerdown", resume);
+      });
+    </script>
+
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+        background: #000;
+        overflow: hidden;
+      }
+      canvas#visualizer {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+      #presetSelect {
+        position: fixed;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 6px 8px;
+        font-size: 14px;
+        z-index: 10;
+      }
+    </style>
   </head>
   <body>
-    <button onclick="start()">Begin Ritual</button>
-    <script>
-      async function start() {
-        await Tone.start();
-
-        const base = 60;
-        const offset = 1.5;
-
-        // Global fade-in
-        Tone.Destination.volume.value = -Infinity;
-        Tone.Destination.volume.rampTo(0, 15); // fade in over 15 seconds
-
-        // Left sine wave
-        const oscL = new Tone.Oscillator(base, "sine").start();
-        const panL = new Tone.Panner(-1);
-        oscL.volume.value = -12;
-        oscL.connect(panL).connect(Tone.Destination);
-
-        // Right sine wave
-        const oscR = new Tone.Oscillator(base + offset, "sine").start();
-        const panR = new Tone.Panner(1);
-        oscR.volume.value = -12;
-        oscR.connect(panR).connect(Tone.Destination);
-
-        // Sub saw layer with filter
-        const sub = new Tone.Oscillator(30, "sawtooth").start();
-        const subFilter = new Tone.Filter(100, "lowpass");
-        const subGain = new Tone.Gain(0.4);
-        sub.chain(subFilter, subGain, Tone.Destination);
-
-        const lfo = new Tone.LFO("0.02hz", 60, 200);
-        lfo.connect(subFilter.frequency).start();
-
-        // Brown noise pad
-        const noise = new Tone.Noise("brown").start();
-        const noiseFilter = new Tone.Filter(500, "lowpass");
-        const noiseGain = new Tone.Gain(0.05);
-        noise.chain(noiseFilter, noiseGain, Tone.Destination);
-
-        // Detuned fifth
-        const fifth = new Tone.Oscillator(base * 1.5 + 0.3, "sine").start();
-        fifth.volume.value = -20;
-        fifth.connect(Tone.Destination);
-      }
-    </script>
+    <canvas
+      id="visualizer"
+      width="800"
+      height="600"
+      style="display: block; margin: 20px auto"
+    ></canvas>
   </body>
 </html>
