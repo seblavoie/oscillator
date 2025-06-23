@@ -67,18 +67,23 @@
       fifth.connect(Tone.Destination);
     }
 
-    let toneStarted = false;
-    const tryStartTone = () => {
-      if (toneStarted) return;
-      startTone()
-        .then(() => (toneStarted = true))
-        .catch(() => {});
-    };
+    const startBtn = document.getElementById("startBtn");
+    startBtn.addEventListener("click", async () => {
+      startBtn.style.display = "none";
+      try {
+        await startTone();
+      } catch (err) {
+        console.error("Failed to start audio", err);
+      }
 
-    tryStartTone(); // attempt autoplay
-
-    // Fallback on first user interaction
-    window.addEventListener("pointerdown", tryStartTone, { once: true });
+      // Enter fullscreen
+      const root = document.documentElement;
+      if (!document.fullscreenElement && root.requestFullscreen) {
+        try {
+          await root.requestFullscreen();
+        } catch (e) {}
+      }
+    });
 
     // Node to route Tone audio into visualizer
     const vizGain = audioCtx.createGain();
@@ -98,10 +103,11 @@
 
     const keys = Object.keys(presets).sort((a, b) => a.localeCompare(b));
 
-    // helper to load
+    let currentIndex = 0;
     const loadPreset = (presetKey, blend = 0) => {
       viz.loadPreset(presets[presetKey], blend);
       select.value = presetKey;
+      currentIndex = keys.indexOf(presetKey);
     };
 
     // Build dropdown
@@ -151,19 +157,31 @@
       }
     });
 
-    // Show controls on mouse move
-    let hideTimer;
+    // Controls appear only when cursor near bottom 100px
     const controls = [select, fsBtn];
-    const showControls = () => {
-      controls.forEach((c) => (c.style.opacity = "1"));
-      clearTimeout(hideTimer);
-      hideTimer = setTimeout(
-        () => controls.forEach((c) => (c.style.opacity = "0")),
-        1000
-      );
+    let visible = false;
+    const setVisibility = (vis) => {
+      if (visible === vis) return;
+      visible = vis;
+      controls.forEach((c) => (c.style.opacity = vis ? "1" : "0"));
     };
-    window.addEventListener("mousemove", showControls);
-    showControls();
+
+    window.addEventListener("mousemove", (e) => {
+      const fromBottom = window.innerHeight - e.clientY;
+      if (fromBottom < 120) {
+        setVisibility(true);
+      } else {
+        setVisibility(false);
+      }
+    });
+
+    // Space bar cycles to next preset
+    window.addEventListener("keydown", (e) => {
+      if (e.code === "Space") {
+        currentIndex = (currentIndex + 1) % keys.length;
+        loadPreset(keys[currentIndex], 2.7);
+      }
+    });
   }
 
   document.addEventListener("DOMContentLoaded", init);
