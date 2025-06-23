@@ -231,6 +231,11 @@
 
       // turn ON
       try {
+        if (!window.isSecureContext) {
+          alert("Microphone access requires HTTPS or localhost.");
+          return;
+        }
+
         const devices = await navigator.mediaDevices.enumerateDevices();
         const firstMic = devices.find((d) => d.kind === "audioinput");
 
@@ -239,9 +244,17 @@
           return;
         }
 
-        micStream = await navigator.mediaDevices.getUserMedia({
-          audio: { deviceId: { exact: firstMic.deviceId } },
-        });
+        // try precise constraint first
+        try {
+          micStream = await navigator.mediaDevices.getUserMedia({
+            audio: { deviceId: { exact: firstMic.deviceId } },
+          });
+        } catch (cErr) {
+          // fallback to generic audio:true
+          micStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+        }
 
         micSource = audioCtx.createMediaStreamSource(micStream);
         const micGain = new Tone.Gain(1);
