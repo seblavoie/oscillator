@@ -185,10 +185,7 @@
     });
 
     // Controls appear only when cursor near bottom 100px
-    const micBtn = document.getElementById("micBtn");
-    const toneBtn = document.getElementById("toneBtn");
-
-    const controls = [select, fsBtn, micBtn, toneBtn];
+    const controls = [select, fsBtn];
 
     let visible = false;
     const setVisibility = (vis) => {
@@ -213,76 +210,6 @@
         loadPreset(keys[currentIndex], 2.7);
       }
     });
-
-    /* === Microphone toggle === */
-    let micActive = false;
-    let micStream = null;
-    let micSource = null;
-
-    async function toggleMic() {
-      // turn OFF
-      if (micActive) {
-        if (micSource) micSource.disconnect();
-        if (micStream) micStream.getTracks().forEach((t) => t.stop());
-        micActive = false;
-        micBtn.textContent = "Mic";
-        return;
-      }
-
-      // turn ON
-      try {
-        if (!window.isSecureContext) {
-          alert("Microphone access requires HTTPS or localhost.");
-          return;
-        }
-
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const firstMic = devices.find((d) => d.kind === "audioinput");
-
-        if (!firstMic) {
-          alert("No microphone detected. Plug one in or enable it in your OS.");
-          return;
-        }
-
-        // try precise constraint first
-        try {
-          micStream = await navigator.mediaDevices.getUserMedia({
-            audio: { deviceId: { exact: firstMic.deviceId } },
-          });
-        } catch (cErr) {
-          // fallback to generic audio:true
-          micStream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-          });
-        }
-
-        micSource = audioCtx.createMediaStreamSource(micStream);
-        const micGain = new Tone.Gain(1);
-        micSource.connect(micGain);
-        micGain.connect(vizGain); // drive Butterchurn
-        micGain.connect(audioCtx.destination); // audible
-
-        micActive = true;
-        micBtn.textContent = "Mic✓";
-      } catch (err) {
-        console.error("Mic error", err);
-        if (err.name === "NotAllowedError")
-          alert("Microphone permission denied. Grant access and try again.");
-        else if (err.name === "NotFoundError")
-          alert("No usable microphone found.");
-        else alert("Unable to access microphone.");
-      }
-    }
-    micBtn.addEventListener("click", toggleMic);
-
-    /* === Tone toggle === */
-    let toneActive = true;
-    function toggleTone() {
-      toneActive = !toneActive;
-      Tone.Destination.mute = !toneActive;
-      toneBtn.textContent = toneActive ? "Tone✓" : "Tone";
-    }
-    toneBtn.addEventListener("click", toggleTone);
   }
 
   document.addEventListener("DOMContentLoaded", init);

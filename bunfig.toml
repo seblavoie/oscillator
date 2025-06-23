@@ -1,4 +1,0 @@
-[build]
-entrypoints = ["./src/index.js"]
-outdir = "./dist"
-target = "browser" 
