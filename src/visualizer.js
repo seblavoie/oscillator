@@ -220,30 +220,44 @@
     let micSource = null;
 
     async function toggleMic() {
-      if (!micActive) {
-        try {
-          micStream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-          });
-          micSource = audioCtx.createMediaStreamSource(micStream);
-          const micGain = new Tone.Gain(1);
-          micSource.connect(micGain);
-          micGain.connect(vizGain);
-          micGain.connect(audioCtx.destination);
-          micActive = true;
-          micBtn.textContent = "Mic✓";
-        } catch (err) {
-          console.error("Mic error", err);
-        }
-      } else {
-        if (micSource) {
-          micSource.disconnect();
-        }
-        if (micStream) {
-          micStream.getTracks().forEach((t) => t.stop());
-        }
+      // turn OFF
+      if (micActive) {
+        if (micSource) micSource.disconnect();
+        if (micStream) micStream.getTracks().forEach((t) => t.stop());
         micActive = false;
         micBtn.textContent = "Mic";
+        return;
+      }
+
+      // turn ON
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const firstMic = devices.find((d) => d.kind === "audioinput");
+
+        if (!firstMic) {
+          alert("No microphone detected. Plug one in or enable it in your OS.");
+          return;
+        }
+
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { deviceId: { exact: firstMic.deviceId } },
+        });
+
+        micSource = audioCtx.createMediaStreamSource(micStream);
+        const micGain = new Tone.Gain(1);
+        micSource.connect(micGain);
+        micGain.connect(vizGain); // drive Butterchurn
+        micGain.connect(audioCtx.destination); // audible
+
+        micActive = true;
+        micBtn.textContent = "Mic✓";
+      } catch (err) {
+        console.error("Mic error", err);
+        if (err.name === "NotAllowedError")
+          alert("Microphone permission denied. Grant access and try again.");
+        else if (err.name === "NotFoundError")
+          alert("No usable microphone found.");
+        else alert("Unable to access microphone.");
       }
     }
     micBtn.addEventListener("click", toggleMic);
