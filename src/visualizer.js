@@ -65,6 +65,33 @@
       const fifth = new Tone.Oscillator(base * 1.5 + 0.3, "sine").start();
       fifth.volume.value = -20;
       fifth.connect(Tone.Destination);
+
+      /* === Deep binaural beat layer === */
+      const beatFreq = 4; // Hz difference between ears (theta range)
+      const carrier = 120; // base carrier frequency
+
+      const leftBeat = new Tone.Oscillator(
+        carrier - beatFreq / 2,
+        "sine"
+      ).start();
+      const rightBeat = new Tone.Oscillator(
+        carrier + beatFreq / 2,
+        "sine"
+      ).start();
+
+      const panLeftBeat = new Tone.Panner(-1);
+      const panRightBeat = new Tone.Panner(1);
+
+      const beatGain = new Tone.Gain(0.08);
+
+      leftBeat.connect(panLeftBeat).connect(beatGain);
+      rightBeat.connect(panRightBeat).connect(beatGain);
+
+      beatGain.connect(Tone.Destination);
+
+      // Very slow amplitude modulation to make it breathe
+      const ampLFO = new Tone.LFO("0.03hz", 0, 0.12).start(); // breathe between 0–0.12
+      ampLFO.connect(beatGain.gain);
     }
 
     const startBtn = document.getElementById("startBtn");
