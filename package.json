@@ -13,8 +13,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "butterchurn": "0.3.0",
-    "butterchurn-presets": "1.0.0",
+    "butterchurn": "^2.6.7",
+    "butterchurn-presets": "^2.4.7",
     "tone": "^15.1.22"
   }
 }

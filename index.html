@@ -6,6 +6,7 @@
     <!-- Butterchurn libs -->
     <script src="https://cdn.jsdelivr.net/npm/butterchurn@2.6.7/lib/butterchurn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/butterchurn-presets@2.4.7/lib/butterchurnPresets.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/butterchurn-presets@2.4.7/lib/butterchurnPresetsExtra.min.js"></script>
 
     <!-- Tone.js must load before our visualizer script -->
     <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"></script>
@@ -50,15 +51,22 @@
         padding: 6px 8px;
         font-size: 14px;
         z-index: 10;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      #fsBtn {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        padding: 6px 10px;
+        font-size: 14px;
+        z-index: 10;
+        cursor: pointer;
       }
     </style>
   </head>
   <body>
-    <canvas
-      id="visualizer"
-      width="800"
-      height="600"
-      style="display: block; margin: 20px auto"
-    ></canvas>
+    <canvas id="visualizer"></canvas>
+    <button id="fsBtn">⤢</button>
   </body>
 </html>

@@ -91,7 +91,11 @@
     });
     viz.connectAudio(vizGain);
 
-    const presets = butterchurnPresets.getPresets();
+    let presets = { ...butterchurnPresets.getPresets() };
+    if (window.butterchurnPresetsExtra?.getPresets) {
+      Object.assign(presets, window.butterchurnPresetsExtra.getPresets());
+    }
+
     const keys = Object.keys(presets).sort((a, b) => a.localeCompare(b));
 
     // helper to load
@@ -135,6 +139,31 @@
       viz.render();
       requestAnimationFrame(loop);
     })();
+
+    // Fullscreen button
+    const fsBtn = document.getElementById("fsBtn");
+    fsBtn.addEventListener("click", () => {
+      const el = document.documentElement;
+      if (!document.fullscreenElement) {
+        el.requestFullscreen?.();
+      } else {
+        document.exitFullscreen?.();
+      }
+    });
+
+    // Show controls on mouse move
+    let hideTimer;
+    const controls = [select, fsBtn];
+    const showControls = () => {
+      controls.forEach((c) => (c.style.opacity = "1"));
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(
+        () => controls.forEach((c) => (c.style.opacity = "0")),
+        1000
+      );
+    };
+    window.addEventListener("mousemove", showControls);
+    showControls();
   }
 
   document.addEventListener("DOMContentLoaded", init);
