@@ -3,12 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
-    "build": "bun build src/index.js --target browser --outdir dist",
-    "dev": "bunx concurrently \"bun build src/index.js --target browser --outdir dist --watch\" \"bun run --hot serve.js\"",
-    "serve": "bun run serve.js",
-    "start": "bun run build && bun run serve.js"
-  },
+  "scripts": {},
   "keywords": [],
   "author": "",
   "license": "ISC",
