@@ -23,6 +23,121 @@
 
     const audioCtx = Tone.getContext().rawContext;
 
+    // Audio input state
+    let isMicrophoneActive = false;
+    let microphoneStream = null;
+    let microphoneSource = null;
+    let toneAudioActive = false;
+
+    // Tone.js audio nodes storage
+    let toneNodes = {
+      oscillators: [],
+      lfos: [],
+      noise: null,
+      filters: [],
+      gains: [],
+      panners: [],
+    };
+
+    // Audio routing nodes
+    const vizGain = audioCtx.createGain();
+    let currentAudioSource = null;
+
+    // Function to switch audio input
+    async function switchToMicrophone() {
+      if (isMicrophoneActive) return;
+
+      try {
+        // Stop all Tone.js audio nodes
+        if (toneAudioActive) {
+          // Stop all oscillators
+          toneNodes.oscillators.forEach((osc) => osc.stop());
+
+          // Stop all LFOs
+          toneNodes.lfos.forEach((lfo) => lfo.stop());
+
+          // Stop noise
+          if (toneNodes.noise) {
+            toneNodes.noise.stop();
+          }
+
+          // Disconnect from visualizer
+          Tone.Destination.disconnect(vizGain);
+          toneAudioActive = false;
+        }
+
+        // Get microphone stream
+        microphoneStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+          },
+        });
+
+        // Create audio source from microphone
+        microphoneSource = audioCtx.createMediaStreamSource(microphoneStream);
+        microphoneSource.connect(vizGain);
+        currentAudioSource = microphoneSource;
+
+        isMicrophoneActive = true;
+        updateInputButton();
+
+        console.log("Switched to microphone input");
+      } catch (err) {
+        console.error("Failed to access microphone:", err);
+        alert("Failed to access microphone. Please check permissions.");
+      }
+    }
+
+    async function switchToTone() {
+      if (!isMicrophoneActive) return;
+
+      // Stop microphone
+      if (microphoneSource) {
+        microphoneSource.disconnect(vizGain);
+        microphoneSource = null;
+      }
+      if (microphoneStream) {
+        microphoneStream.getTracks().forEach((track) => track.stop());
+        microphoneStream = null;
+      }
+
+      // Restart all Tone.js audio nodes
+      if (!toneAudioActive) {
+        // Restart all oscillators
+        toneNodes.oscillators.forEach((osc) => osc.start());
+
+        // Restart all LFOs
+        toneNodes.lfos.forEach((lfo) => lfo.start());
+
+        // Restart noise
+        if (toneNodes.noise) {
+          toneNodes.noise.start();
+        }
+
+        // Reconnect to visualizer
+        Tone.Destination.connect(vizGain);
+        toneAudioActive = true;
+      }
+
+      isMicrophoneActive = false;
+      currentAudioSource = null;
+      updateInputButton();
+
+      console.log("Switched to Tone.js input");
+    }
+
+    function updateInputButton() {
+      const inputBtn = document.getElementById("inputBtn");
+      if (inputBtn) {
+        inputBtn.textContent = isMicrophoneActive ? "🎤" : "🎵";
+        inputBtn.title = isMicrophoneActive
+          ? "Switch to Tone.js"
+          : "Switch to Microphone";
+      }
+    }
+
     /* === Rich ambient stack === */
     async function startTone() {
       await Tone.start();
@@ -92,15 +207,32 @@
       // Very slow amplitude modulation to make it breathe
       const ampLFO = new Tone.LFO("0.03hz", 0, 0.12).start(); // breathe between 0–0.12
       ampLFO.connect(beatGain.gain);
+
+      // Store references to all audio nodes for later control
+      toneNodes.oscillators = [oscL, oscR, sub, fifth, leftBeat, rightBeat];
+      toneNodes.lfos = [lfo, ampLFO];
+      toneNodes.noise = noise;
+      toneNodes.filters = [subFilter, noiseFilter];
+      toneNodes.gains = [subGain, noiseGain, beatGain];
+      toneNodes.panners = [panL, panR, panLeftBeat, panRightBeat];
+
+      // Mark Tone.js as active and connect to visualizer
+      toneAudioActive = true;
+      Tone.Destination.connect(vizGain);
     }
 
-    const startBtn = document.getElementById("startBtn");
-    startBtn.addEventListener("click", async () => {
-      startBtn.style.display = "none";
+    const startToneBtn = document.getElementById("startToneBtn");
+    const startMicBtn = document.getElementById("startMicBtn");
+
+    startToneBtn.addEventListener("click", async () => {
+      startToneBtn.style.display = "none";
+      startMicBtn.style.display = "none";
       try {
         await startTone();
+        isMicrophoneActive = false;
+        updateInputButton();
       } catch (err) {
-        console.error("Failed to start audio", err);
+        console.error("Failed to start Tone.js audio", err);
       }
 
       // Enter fullscreen
@@ -112,9 +244,24 @@
       }
     });
 
-    // Node to route Tone audio into visualizer
-    const vizGain = audioCtx.createGain();
-    Tone.Destination.connect(vizGain);
+    startMicBtn.addEventListener("click", async () => {
+      startToneBtn.style.display = "none";
+      startMicBtn.style.display = "none";
+      try {
+        await startTone(); // Initialize Tone.js context
+        await switchToMicrophone(); // Switch to microphone input
+      } catch (err) {
+        console.error("Failed to start microphone audio", err);
+      }
+
+      // Enter fullscreen
+      const root = document.documentElement;
+      if (!document.fullscreenElement && root.requestFullscreen) {
+        try {
+          await root.requestFullscreen();
+        } catch (e) {}
+      }
+    });
 
     const canvas = document.getElementById("visualizer");
     const viz = butterchurn.createVisualizer(audioCtx, canvas, {
@@ -184,8 +331,23 @@
       }
     });
 
+    // Input toggle button
+    const inputBtn = document.createElement("button");
+    inputBtn.id = "inputBtn";
+    inputBtn.textContent = "🎵";
+    inputBtn.title = "Switch to Microphone";
+    document.body.appendChild(inputBtn);
+
+    inputBtn.addEventListener("click", async () => {
+      if (isMicrophoneActive) {
+        await switchToTone();
+      } else {
+        await switchToMicrophone();
+      }
+    });
+
     // Controls appear only when cursor near bottom 100px
-    const controls = [select, fsBtn];
+    const controls = [select, fsBtn, inputBtn];
 
     let visible = false;
     const setVisibility = (vis) => {
