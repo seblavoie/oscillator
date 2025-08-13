@@ -80,7 +80,8 @@
         border-radius: 4px;
       }
       #startToneBtn,
-      #startMicBtn {
+      #startMicBtn,
+      #startHexodeBtn {
         position: fixed;
         top: 50%;
         padding: 12px 20px;
@@ -94,16 +95,21 @@
         transition: all 0.3s ease;
       }
       #startToneBtn:hover,
-      #startMicBtn:hover {
+      #startMicBtn:hover,
+      #startHexodeBtn:hover {
         background: rgba(0, 0, 0, 0.9);
         border-color: rgba(255, 255, 255, 0.6);
       }
       #startToneBtn {
-        left: 40%;
+        left: 30%;
         transform: translate(-50%, -50%);
       }
       #startMicBtn {
-        left: 60%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+      #startHexodeBtn {
+        left: 70%;
         transform: translate(-50%, -50%);
       }
     </style>
@@ -111,6 +117,7 @@
   <body>
     <button id="startToneBtn">Start with Tone.js</button>
     <button id="startMicBtn">Start with Microphone</button>
+    <button id="startHexodeBtn">Start with Hexode</button>
     <canvas id="visualizer"></canvas>
     <button id="fsBtn">⤢</button>
   </body>

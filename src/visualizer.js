@@ -28,6 +28,9 @@
     let microphoneStream = null;
     let microphoneSource = null;
     let toneAudioActive = false;
+    let hexodeAudioActive = false;
+    let hexodeAudioBuffer = null;
+    let hexodeSource = null;
 
     // Tone.js audio nodes storage
     let toneNodes = {
@@ -42,6 +45,23 @@
     // Audio routing nodes
     const vizGain = audioCtx.createGain();
     let currentAudioSource = null;
+
+    // Function to load audio file
+    async function loadHexodeTrack() {
+      if (hexodeAudioBuffer) return hexodeAudioBuffer;
+
+      try {
+        const response = await fetch("./public/tracks/hexode_track-01_01.mp3");
+        const arrayBuffer = await response.arrayBuffer();
+        hexodeAudioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        console.log("Hexode track loaded successfully");
+        return hexodeAudioBuffer;
+      } catch (err) {
+        console.error("Failed to load hexode track:", err);
+        alert("Failed to load hexode track. Please check if the file exists.");
+        return null;
+      }
+    }
 
     // Function to switch audio input
     async function switchToMicrophone() {
@@ -64,6 +84,15 @@
           // Disconnect from visualizer
           Tone.Destination.disconnect(vizGain);
           toneAudioActive = false;
+        }
+
+        // Stop hexode audio if active
+        if (hexodeAudioActive) {
+          if (hexodeSource) {
+            hexodeSource.stop();
+            hexodeSource = null;
+          }
+          hexodeAudioActive = false;
         }
 
         // Get microphone stream
@@ -91,7 +120,7 @@
     }
 
     async function switchToTone() {
-      if (!isMicrophoneActive) return;
+      if (toneAudioActive) return;
 
       // Stop microphone
       if (microphoneSource) {
@@ -101,6 +130,15 @@
       if (microphoneStream) {
         microphoneStream.getTracks().forEach((track) => track.stop());
         microphoneStream = null;
+      }
+
+      // Stop hexode audio if active
+      if (hexodeAudioActive) {
+        if (hexodeSource) {
+          hexodeSource.stop();
+          hexodeSource = null;
+        }
+        hexodeAudioActive = false;
       }
 
       // Restart all Tone.js audio nodes
@@ -128,13 +166,77 @@
       console.log("Switched to Tone.js input");
     }
 
+    async function switchToHexode() {
+      if (hexodeAudioActive) return;
+
+      // Stop microphone
+      if (microphoneSource) {
+        microphoneSource.disconnect(vizGain);
+        microphoneSource = null;
+      }
+      if (microphoneStream) {
+        microphoneStream.getTracks().forEach((track) => track.stop());
+        microphoneStream = null;
+      }
+
+      // Stop Tone.js audio nodes
+      if (toneAudioActive) {
+        // Stop all oscillators
+        toneNodes.oscillators.forEach((osc) => osc.stop());
+
+        // Stop all LFOs
+        toneNodes.lfos.forEach((lfo) => lfo.stop());
+
+        // Stop noise
+        if (toneNodes.noise) {
+          toneNodes.noise.stop();
+        }
+
+        // Disconnect from visualizer
+        Tone.Destination.disconnect(vizGain);
+        toneAudioActive = false;
+      }
+
+      // Load and play hexode track
+      const audioBuffer = await loadHexodeTrack();
+      if (audioBuffer) {
+        hexodeSource = audioCtx.createBufferSource();
+        hexodeSource.buffer = audioBuffer;
+
+        // Create a gain node for the hexode track
+        const hexodeGain = audioCtx.createGain();
+        hexodeGain.gain.value = 0.5; // Set volume to 50%
+
+        // Connect hexode source to both visualizer and speakers
+        hexodeSource.connect(hexodeGain);
+        hexodeGain.connect(vizGain); // For visualizer
+        hexodeGain.connect(audioCtx.destination); // For speakers
+
+        hexodeSource.loop = true;
+        hexodeSource.start();
+        hexodeAudioActive = true;
+        currentAudioSource = hexodeSource;
+      }
+
+      isMicrophoneActive = false;
+      updateInputButton();
+
+      console.log("Switched to Hexode track input");
+    }
+
     function updateInputButton() {
       const inputBtn = document.getElementById("inputBtn");
       if (inputBtn) {
-        inputBtn.textContent = isMicrophoneActive ? "🎤" : "🎵";
-        inputBtn.title = isMicrophoneActive
-          ? "Switch to Tone.js"
-          : "Switch to Microphone";
+        if (isMicrophoneActive) {
+          inputBtn.textContent = "🎤";
+          inputBtn.title = "Switch to Hexode Track";
+        } else if (hexodeAudioActive) {
+          inputBtn.textContent = "🎵";
+          inputBtn.title = "Switch to Microphone";
+        } else {
+          inputBtn.textContent = "🎵";
+          inputBtn.title = "Switch to Microphone";
+        }
       }
     }
 
@@ -223,13 +325,16 @@
 
     const startToneBtn = document.getElementById("startToneBtn");
     const startMicBtn = document.getElementById("startMicBtn");
+    const startHexodeBtn = document.getElementById("startHexodeBtn");
 
     startToneBtn.addEventListener("click", async () => {
       startToneBtn.style.display = "none";
       startMicBtn.style.display = "none";
+      startHexodeBtn.style.display = "none";
       try {
         await startTone();
         isMicrophoneActive = false;
+        hexodeAudioActive = false;
         updateInputButton();
       } catch (err) {
         console.error("Failed to start Tone.js audio", err);
@@ -247,11 +352,86 @@
     startMicBtn.addEventListener("click", async () => {
       startToneBtn.style.display = "none";
       startMicBtn.style.display = "none";
+      startHexodeBtn.style.display = "none";
       try {
         await startTone(); // Initialize Tone.js context
         await switchToMicrophone(); // Switch to microphone input
       } catch (err) {
         console.error("Failed to start microphone audio", err);
+      }
+
+      // Enter fullscreen
+      const root = document.documentElement;
+      if (!document.fullscreenElement && root.requestFullscreen) {
+        try {
+          await root.requestFullscreen();
+        } catch (e) {}
+      }
+    });
+
+    startHexodeBtn.addEventListener("click", async () => {
+      startToneBtn.style.display = "none";
+      startMicBtn.style.display = "none";
+      startHexodeBtn.style.display = "none";
+
+      try {
+        await startTone(); // Initialize Tone.js context
+
+        // Stop Tone.js audio immediately for silent countdown
+        if (toneAudioActive) {
+          // Stop all oscillators
+          toneNodes.oscillators.forEach((osc) => osc.stop());
+          // Stop all LFOs
+          toneNodes.lfos.forEach((lfo) => lfo.stop());
+          // Stop noise
+          if (toneNodes.noise) {
+            toneNodes.noise.stop();
+          }
+          // Disconnect from visualizer
+          Tone.Destination.disconnect(vizGain);
+          toneAudioActive = false;
+        }
+
+        // Create countdown overlay
+        const countdownOverlay = document.createElement("div");
+        countdownOverlay.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background: rgba(0, 0, 0, 0.8);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          font-family: Arial, sans-serif;
+          font-size: 120px;
+          font-weight: bold;
+          color: white;
+          text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        `;
+        document.body.appendChild(countdownOverlay);
+
+        // Countdown function
+        const countdown = async () => {
+          for (let i = 3; i >= 1; i--) {
+            countdownOverlay.textContent = i;
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+          countdownOverlay.textContent = "GO!";
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          // Remove countdown overlay
+          document.body.removeChild(countdownOverlay);
+
+          // Start hexode track
+          await switchToHexode();
+        };
+
+        countdown();
+      } catch (err) {
+        console.error("Failed to start hexode track audio", err);
       }
 
       // Enter fullscreen
@@ -340,9 +520,11 @@
 
     inputBtn.addEventListener("click", async () => {
       if (isMicrophoneActive) {
-        await switchToTone();
-      } else {
+        await switchToHexode();
+      } else if (hexodeAudioActive) {
         await switchToMicrophone();
+      } else {
+        await switchToTone();
       }
     });
 
